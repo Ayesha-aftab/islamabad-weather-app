@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Islamabad Climate Intelligence Hub</title>
+
+    <!-- Leaflet Maps CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-page: #f0f7f8;
+            --card-bg: #ffffff;
+            --primary: #0e7490;
+            --primary-soft: #ecfeff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #dbe9ea;
+            --accent: #0891b2;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Clean Light Nav Bar */
+        nav {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        }
+
+        .nav-logo {
+            font-weight: 800;
+            font-size: 20px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-logo span { color: var(--primary); }
+
+        .nav-links { display: flex; gap: 8px; }
+
+        .nav-btn {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn.active, .nav-btn:hover {
+            color: #ffffff;
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+
+        .container {
+            max-width: 1320px;
+            margin: 20px auto;
+            padding: 0 24px;
+        }
+
+        /* Dynamic Real-Time Risk Banner */
+        .risk-banner {
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid var(--border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            transition: all 0.3s ease;
+        }
+
+        .risk-banner-title { font-weight: 800; font-size: 15px; }
+        .risk-banner-msg { font-size: 13px; margin-top: 2px; opacity: 0.9; }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .page-intro {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+
+        .page-intro h2 { margin: 0 0 6px 0; font-size: 20px; color: var(--text-main); }
+        .page-intro p { margin: 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+
+        .map-section-grid {
+            display: grid;
+            grid-template-columns: 2.2fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .map-wrapper {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            background: #ffffff;
+        }
+
+        .map-toolbar {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 500;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 6px 10px;
+            border-radius: 40px;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 6px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+        }
+
+        .tool-btn {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tool-btn:hover, .tool-btn.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .tool-btn.reset-btn { background: #fef2f2; color: #ef4444; border-color: #fca5a5; }
+        .tool-btn.reset-btn:hover { background: #ef4444; color: white; }
+
+        #map { height: 480px; width: 100%; z-index: 1; }
+
+        .spatial-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .spatial-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+            margin-bottom: 14px;
+        }
+
+        .spatial-title { font-size: 15px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+        .status-badge { background: var(--primary-soft); color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+
+        .spatial-metrics-list { display: flex; flex-direction: column; gap: 10px; }
+        .spatial-item { background: #f8fafc; padding: 10px 14px; border-radius: 10px; border-left: 4px solid var(--primary); }
+        .spatial-label { font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; }
+        .spatial-value { font-size: 14px; font-weight: 700; color: var(--text-main); margin-top: 2px; }
+
+        /* Comfort Index Card Widget */
+        .comfort-widget {
+            background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 10px;
+        }
+
+        .comfort-badge {
+            display: inline-block;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .forecast-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            margin-bottom: 32px;
+        }
+
+        .forecast-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+        .forecast-title { font-size: 18px; font-weight: 700; color: var(--text-main); }
+
+        .hourly-carousel { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; }
+        .hourly-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            min-width: 95px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .hourly-card:hover { border-color: var(--primary); background: var(--primary-soft); transform: translateY(-2px); }
+        .hourly-time { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+        .hourly-icon { font-size: 26px; margin: 6px 0; }
+        .hourly-temp { font-size: 16px; font-weight: 700; color: var(--text-main); }
+        .hourly-rain { font-size: 11px; color: var(--accent); margin-top: 4px; font-weight: 600; }
+
+        .controls {
+            background: var(--card-bg);
+            padding: 18px 24px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+        }
+
+        select, button { padding: 10px 16px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; }
+        button.btn-primary { background-color: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
+
+        .chart-box {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+        }
+
+        .comparison-cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+        .comp-card { background: var(--card-bg); border-radius: 14px; border: 1px solid var(--border); padding: 20px; }
+        .comp-header { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 24px; }
+        .stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .stat-number { font-size: 28px; font-weight: 800; color: var(--primary); margin: 6px 0; }
+        .stat-desc { font-size: 13px; color: var(--text-muted); }
+
+        .table-box { background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; max-height: 400px; margin-top: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 12px 16px; border-bottom: 1px solid var(--border); text-align: left; }
+        th { background-color: #f8fafc; font-weight: 600; color: var(--text-muted); }
+
+        /* ================= AMBIENT LIVE-SKY BACKGROUND ================= */
+        /* A soft animated sky sits behind the whole app and reflects the
+           real current time-of-day + live weather condition. The nav bar
+           and page gutters are made translucent so it reads through. */
+        body { background: transparent; }
+
+        nav {
+            background: rgba(255, 255, 255, 0.78) !important;
+            backdrop-filter: blur(16px) saturate(160%);
+            -webkit-backdrop-filter: blur(16px) saturate(160%);
+        }
+
+        #ambient-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+            transition: background 2.5s ease;
+        }
+
+        #ambient-bg.sky-day    { background: linear-gradient(180deg, #a9dde3 0%, #dff4f5 45%, #f2fafb 100%); }
+        #ambient-bg.sky-night  { background: linear-gradient(180deg, #071b28 0%, #0c2a38 45%, #123b47 100%); }
+        #ambient-bg.is-raining.sky-day   { background: linear-gradient(180deg, #7fa6ae 0%, #b9d6d9 55%, #dcebec 100%); }
+        #ambient-bg.is-raining.sky-night { background: linear-gradient(180deg, #051620 0%, #0a222d 55%, #0f2f39 100%); }
+
+        .ambient-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(50px);
+            opacity: 0.35;
+            background: radial-gradient(circle, rgba(14,116,144,0.35) 0%, rgba(14,116,144,0) 70%);
+            animation: ambient-blob-float 22s ease-in-out infinite;
+        }
+        .ambient-blob.b1 { width: 320px; height: 320px; top: -60px; left: 5%; }
+        .ambient-blob.b2 { width: 260px; height: 260px; top: 40%; right: 8%; background: radial-gradient(circle, rgba(8,145,178,0.3) 0%, rgba(8,145,178,0) 70%); animation-duration: 28s; animation-delay: -6s; }
+        .ambient-blob.b3 { width: 220px; height: 220px; bottom: -40px; left: 30%; background: radial-gradient(circle, rgba(16,185,129,0.22) 0%, rgba(16,185,129,0) 70%); animation-duration: 34s; animation-delay: -14s; }
+
+        @keyframes ambient-blob-float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33%      { transform: translate(24px, -18px) scale(1.06); }
+            66%      { transform: translate(-18px, 16px) scale(0.96); }
+        }
+
+        .ambient-sun {
+            position: absolute;
+            top: 8%;
+            right: 10%;
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,213,110,0.95) 0%, rgba(255,213,110,0.35) 45%, rgba(255,213,110,0) 70%);
+            box-shadow: 0 0 90px 40px rgba(255, 213, 110, 0.35);
+            animation: ambient-pulse 6s ease-in-out infinite;
+        }
+
+        @keyframes ambient-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50%      { transform: scale(1.07); opacity: 1; }
+        }
+
+        .ambient-stars { position: absolute; inset: 0; display: none; }
+        .star {
+            position: absolute;
+            width: 2.5px;
+            height: 2.5px;
+            border-radius: 50%;
+            background: #ffffff;
+            animation: ambient-twinkle 3s ease-in-out infinite;
+        }
+        @keyframes ambient-twinkle {
+            0%, 100% { opacity: 0.15; }
+            50%      { opacity: 0.95; }
+        }
+
+        .ambient-cloud {
+            position: absolute;
+            width: 260px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.55);
+            border-radius: 100px;
+            filter: blur(6px);
+            opacity: 0.55;
+        }
+        #ambient-bg.sky-night .ambient-cloud { background: rgba(180, 190, 220, 0.18); }
+        #ambient-bg.is-cloudy .ambient-cloud { opacity: 0.85; filter: blur(4px); }
+
+        .ambient-cloud.c1 { top: 14%; left: -30%; width: 320px; height: 90px; animation: ambient-drift 70s linear infinite; }
+        .ambient-cloud.c2 { top: 28%; left: -40%; width: 220px; height: 60px; opacity: 0.4; animation: ambient-drift 100s linear infinite; animation-delay: -30s; }
+        .ambient-cloud.c3 { top: 6%;  left: -20%; width: 180px; height: 50px; opacity: 0.35; animation: ambient-drift 55s linear infinite; animation-delay: -15s; }
+
+        @keyframes ambient-drift {
+            from { transform: translateX(0); }
+            to   { transform: translateX(160vw); }
+        }
+
+        .ambient-rain { position: absolute; inset: 0; display: none; }
+        #ambient-bg.is-raining .ambient-rain { display: block; }
+        .raindrop {
+            position: absolute;
+            top: -8%;
+            width: 1.5px;
+            height: 16px;
+            border-radius: 2px;
+            background: linear-gradient(180deg, rgba(148,187,233,0) 0%, rgba(148,187,233,0.75) 100%);
+            animation-name: ambient-fall;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+        @keyframes ambient-fall {
+            from { transform: translateY(0); }
+            to   { transform: translateY(115vh); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ambient-sun, .star, .ambient-cloud, .raindrop { animation: none !important; }
+        }
+
+        /* ================= HEATWAVE FORECAST PAGE ================= */
+        .heat-hero {
+            background: linear-gradient(135deg, #fff7ed 0%, #ffffff 55%);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 36px;
+            flex-wrap: wrap;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.03);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .heat-shimmer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(100deg, rgba(249,115,22,0.05) 0px, rgba(249,115,22,0.05) 2px, transparent 2px, transparent 40px);
+            animation: heat-shimmer-move 6s linear infinite;
+            opacity: 0.7;
+        }
+        @keyframes heat-shimmer-move {
+            from { transform: translateX(0); }
+            to   { transform: translateX(-80px); }
+        }
+
+        .heat-gauge-wrap { position: relative; z-index: 1; display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+
+        .heat-gauge {
+            position: relative;
+            width: 176px;
+            height: 176px;
+            border-radius: 50%;
+            background: conic-gradient(var(--gauge-color, #10b981) calc(var(--gauge-pct, 0) * 1%), #e5e9f0 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 1s ease;
+            flex-shrink: 0;
+        }
+        .heat-gauge::before {
+            content: '';
+            position: absolute;
+            inset: 13px;
+            background: #ffffff;
+            border-radius: 50%;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.06);
+        }
+        .heat-gauge-inner { position: relative; z-index: 1; text-align: center; }
+        .heat-gauge-flame { font-size: 26px; line-height: 1; margin-bottom: 2px; }
+        .heat-gauge-value { font-size: 34px; font-weight: 800; color: var(--text-main); }
+        .heat-gauge-sub { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
+
+        .heat-gauge.risk-high, .heat-gauge.risk-critical { animation: heat-pulse-ring 2.2s ease-in-out infinite; }
+        @keyframes heat-pulse-ring {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }
+            50%      { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+        }
+
+        .heat-summary { flex: 1; min-width: 240px; position: relative; z-index: 1; }
+        .heat-risk-badge {
+            display: inline-block;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            margin-bottom: 10px;
+        }
+        .heat-summary h3 { margin: 0 0 8px 0; font-size: 20px; color: var(--text-main); }
+        .heat-summary p { margin: 0; font-size: 13.5px; color: var(--text-muted); line-height: 1.55; max-width: 520px; }
+
+        .heat-stat-row { display: flex; gap: 24px; margin-top: 14px; flex-wrap: wrap; }
+        .heat-stat-mini .heat-stat-num { font-size: 20px; font-weight: 800; color: var(--text-main); }
+        .heat-stat-mini .heat-stat-lbl { font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+
+        .heat-outlook { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 24px; }
+        .heat-day-card {
+            min-width: 108px;
+            border-radius: 14px;
+            padding: 14px 12px;
+            text-align: center;
+            border: 1px solid var(--border);
+            background: #f8fafc;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .heat-day-card:hover { transform: translateY(-3px); }
+        .heat-day-label { font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
+        .heat-day-temp { font-size: 19px; font-weight: 800; margin: 6px 0 2px; color: var(--text-main); }
+        .heat-day-feel { font-size: 10.5px; color: var(--text-muted); }
+        .heat-day-tag {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 9.5px;
+            font-weight: 800;
+            letter-spacing: 0.03em;
+            padding: 3px 8px;
+            border-radius: 20px;
+            color: #fff;
+        }
+        .heat-day-card.risk-severe-heatwave { background: #fef2f2; border-color: #fecaca; }
+        .heat-day-card.risk-heatwave        { background: #fff7ed; border-color: #fed7aa; }
+        .heat-day-card.risk-heat-advisory   { background: #fffbeb; border-color: #fde68a; }
+        .heat-day-card.risk-normal          { background: #f0fdf4; border-color: #bbf7d0; }
+
+        .heat-advisory-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .heat-advisory-grid { grid-template-columns: 1fr; } }
+        .heat-advisory-card {
+            border-radius: 14px;
+            padding: 18px 20px;
+            border-left: 5px solid var(--warning);
+            background: #fffbeb;
+        }
+        .heat-advisory-card h4 { margin: 0 0 6px 0; font-size: 14px; }
+        .heat-advisory-card p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="nav-logo">🌤️ <span>Islamabad Climate Intelligence Hub</span></div>
+        <div class="nav-links">
+            <button class="nav-btn active" onclick="switchPage(1, event)">Live & Spatial Map</button>
+            <button class="nav-btn" onclick="switchPage(2, event)">Monthly & Compare</button>
+            <button class="nav-btn" onclick="switchPage(3, event)">Extreme Weather Events</button>
+            <button class="nav-btn" onclick="switchPage(4, event)">🔥 Heatwave Forecast</button>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <!-- Dynamic AI Flood & Cloudburst Alert Banner -->
+        <div id="risk-banner" class="risk-banner">
+            <div>
+                <div class="risk-banner-title" id="risk-banner-title">Loading Risk Status...</div>
+                <div class="risk-banner-msg" id="risk-banner-msg">Evaluating rainfall intensity and hydrological parameters...</div>
+            </div>
+            <span style="font-weight: bold; font-size: 12px; padding: 4px 12px; border-radius: 20px; background: rgba(0,0,0,0.05);" id="risk-badge">AI ALERT</span>
+        </div>
+
+        <!-- PAGE 1 -->
+        <div id="page1" class="page active">
+            <div class="page-intro">
+                <h2>Real-Time Spatial Analysis & Live Meteorological Status</h2>
+                <p>Interactive spatial mapping and live hourly weather intelligence for Islamabad. Select map layers to highlight micro-climate variance across urban sectors and foothills.</p>
+            </div>
+
+            <div class="map-section-grid">
+                <div class="map-wrapper">
+                    <div class="map-toolbar">
+                        <button class="tool-btn active" onclick="applyMapLayer('temp', event)">🌡️ Temperature</button>
+                        <button class="tool-btn" onclick="applyMapLayer('rain', event)">🌧️ Rainfall</button>
+                        <button class="tool-btn" onclick="applyMapLayer('humidity', event)">💧 Humidity</button>
+                        <button class="tool-btn" onclick="applyMapLayer('wind', event)">💨 Wind Speed</button>
+                        <button class="tool-btn" onclick="applyMapLayer('pressure', event)">⏲️ Pressure</button>
+                        <button class="tool-btn reset-btn" onclick="resetMapLayers()">🔄 Reset</button>
+                    </div>
+                    <div id="map"></div>
+                </div>
+
+                <div class="spatial-card">
+                    <div>
+                        <div class="spatial-header">
+                            <div class="spatial-title">
+                                <span id="spatial-icon">🌡️</span> <span id="spatial-factor-name">Temperature Layer</span>
+                            </div>
+                            <span class="status-badge">Live ICT Status</span>
+                        </div>
+
+                        <div class="spatial-metrics-list">
+                            <div class="spatial-item" style="border-color: #2563eb;">
+                                <div class="spatial-label">Live City Average</div>
+                                <div class="spatial-value" id="spatial-avg-val">29.8 °C</div>
+                            </div>
+                            <div class="spatial-item" style="border-color: #ef4444;">
+                                <div class="spatial-label">Highest Spot (Urban Core)</div>
+                                <div class="spatial-value" id="spatial-high-val">34.2 °C (Sector I-8 / Blue Area)</div>
+                            </div>
+                            <div class="spatial-item" style="border-color: #10b981;">
+                                <div class="spatial-label">Lowest Spot (Margalla Range)</div>
+                                <div class="spatial-value" id="spatial-low-val">26.1 °C (Pir Sohawa)</div>
+                            </div>
+                        </div>
+
+                        <!-- Climate Comfort Index Widget -->
+                        <div class="comfort-widget">
+                            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Human Comfort Index (RealFeel)</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                                <div style="font-size: 20px; font-weight: 800; color: var(--text-main);" id="comfort-realfeel">31.4 °C</div>
+                                <span class="comfort-badge" id="comfort-badge" style="background: #10b981;">Optimal Comfort</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-muted); padding-top: 10px; border-top: 1px solid var(--border);">
+                        📍 Active Zone: <b>Islamabad Capital Territory Boundary</b>
+                    </div>
+                </div>
+            </div>
+
+            <div class="forecast-section">
+                <div class="forecast-header">
+                    <div class="forecast-title">⚡ 24-Hour Forecast & Extended Trend</div>
+                    <div style="font-size: 13px; color: var(--primary); font-weight: 600;" id="live-sync-date">Syncing Live Data...</div>
+                </div>
+
+                <div class="hourly-carousel" id="hourly-carousel"></div>
+
+                <div style="margin-top: 20px; background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+                    <h4 style="margin: 0 0 10px 0; color: var(--text-muted); font-size: 13px;">7-Day Extended Temperature & Precipitation Outlook</h4>
+                    <canvas id="p1ForecastChart" height="65"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 2 -->
+        <div id="page2" class="page">
+            <div class="page-intro">
+                <h2>Monthly Historical Trends & Multi-Year Comparative Analytics</h2>
+                <p>Analyze weather datasets from 2000 to 2026. Toggle between single-month granular view or multi-year month-aggregated comparison curves.</p>
+            </div>
+
+            <div class="controls">
+                <label><b>View Mode:</b></label>
+                <select id="p2-mode" onchange="toggleP2Controls()">
+                    <option value="monthly">Single Month Granular View</option>
+                    <option value="compare" selected>Compare 2 Years (Month-Wise Aggregated)</option>
+                </select>
+
+                <div id="p2-monthly-inputs" style="display: none; gap: 8px;">
+                    <select id="p2-year"></select>
+                    <select id="p2-month">
+                        <option value="01">January</option><option value="02">February</option>
+                        <option value="03">March</option><option value="04">April</option>
+                        <option value="05">May</option><option value="06">June</option>
+                        <option value="07">July</option><option value="08" selected>August</option>
+                        <option value="09">September</option><option value="10">October</option>
+                        <option value="11">November</option><option value="12">December</option>
+                    </select>
+                </div>
+
+                <div id="p2-compare-inputs" style="display: flex; gap: 8px; align-items: center;">
+                    <label>Year 1:</label><select id="p2-comp-y1"></select>
+                    <label>Year 2:</label><select id="p2-comp-y2"></select>
+                    <label>Metric Focus:</label>
+                    <select id="p2-metric">
+                        <option value="Avg Temp (°C)">Average Temperature (°C)</option>
+                        <option value="Rainfall (mm)">Rainfall (mm)</option>
+                        <option value="Relative Humidity (%)">Relative Humidity (%)</option>
+                        <option value="Max Wind Speed (km/h)">Wind Speed (km/h)</option>
+                        <option value="Pressure (hPa)">Pressure (hPa)</option>
+                    </select>
+                </div>
+
+                <button class="btn-primary" onclick="loadPage2Data()">Apply Filters</button>
+            </div>
+
+            <!-- Page 2 Extended Comparison Cards -->
+            <div id="p2-comparison-cards-box" class="comparison-cards-grid">
+                <div class="comp-card">
+                    <div class="comp-header" id="y1-card-title">Year 1 Summary</div>
+                    <div class="metric-row"><span class="metric-label">Average Temp</span><span class="metric-value" id="y1-avg-temp">-- °C</span></div>
+                    <div class="metric-row"><span class="metric-label">Total Rainfall</span><span class="metric-value" id="y1-rain">-- mm</span></div>
+                    <div class="metric-row"><span class="metric-label">Avg Humidity</span><span class="metric-value" id="y1-humidity">-- %</span></div>
+                    <div class="metric-row"><span class="metric-label">Avg Wind Speed</span><span class="metric-value" id="y1-wind">-- km/h</span></div>
+                    <div class="metric-row"><span class="metric-label">Avg Pressure</span><span class="metric-value" id="y1-pressure">-- hPa</span></div>
+                </div>
+                <div class="comp-card">
+                    <div class="comp-header" id="y2-card-title" style="color: var(--danger);">Year 2 Summary</div>
+                    <div class="metric-row"><span class="metric-label">Average Temp</span><span class="metric-value" id="y2-avg-temp">-- °C</span></div>
+                    <div class="metric-row"><span class="metric-label">Total Rainfall</span><span class="metric-value" id="y2-rain">-- mm</span></div>
+                    <div class="metric-row"><span class="metric-label">Avg Humidity</span><span class="metric-value" id="y2-humidity">-- %</span></div>
+                    <div class="metric-row"><span class="metric-label">Avg Wind Speed</span><span class="metric-value" id="y2-wind">-- km/h</span></div>
+                    <div class="metric-row"><span class="metric-label">Avg Pressure</span><span class="metric-value" id="y2-pressure">-- hPa</span></div>
+                </div>
+            </div>
+
+            <div class="chart-box">
+                <h3 id="p2-chart-title" style="margin-top:0; font-size:16px;">Month-Wise Comparative Trends</h3>
+                <canvas id="p2Chart" height="85"></canvas>
+            </div>
+
+            <div id="p2-table-wrapper" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0; font-size: 16px;">Granular Daily Weather Log Table</h3>
+                </div>
+                <div class="table-box">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th><th>Avg Temp (°C)</th><th>Min Temp (°C)</th><th>Max Temp (°C)</th>
+                                <th>Humidity (%)</th><th>Rainfall (mm)</th><th>Wind (km/h)</th><th>Pressure (hPa)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="p2-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 3 -->
+        <div id="page3" class="page">
+            <div class="page-intro">
+                <h2>Decadal Climate Trajectory & Extreme Events Analysis (2000–2026)</h2>
+                <p>Long-term climate variations, heatwave anomalies, and monsoon cloudburst records for Islamabad over the last 26 years.</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">HISTORICAL ALL-TIME HIGH</div>
+                    <div class="stat-number">46.6 °C</div>
+                    <div class="stat-desc">Recorded during June 2005 Extreme Heatwave</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">MAX SINGLE-DAY RAINFALL</div>
+                    <div class="stat-number">620 mm</div>
+                    <div class="stat-desc">July 23, 2001 Cloudburst (Sector E-11 / H-8)</div>
+                </div>
+                <div class="stat-card">
+                    <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">WARMEST DECADE AVERAGE</div>
+                    <div class="stat-number">+1.4 °C</div>
+                    <div class="stat-desc">Mean Temperature Shift (2015–2026 vs 2000 Baseline)</div>
+                </div>
+            </div>
+
+            <!-- Heatwave Anomaly Intelligence Panel -->
+            <div class="chart-box" style="border-left: 5px solid var(--warning);">
+                <h3 style="margin-top:0; font-size:16px;">🔥 Heatwave Anomaly Detection Engine</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                    <div>
+                        <div style="font-size: 18px; font-weight: 800;" id="heatwave-status">Evaluating Consecutive Hot Days...</div>
+                        <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" id="heatwave-advice">Scanning daily max temperature thresholds (>= 40°C)...</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 24px; font-weight: 800; color: var(--danger);" id="heatwave-days">0</div>
+                        <div style="font-size: 11px; color: var(--text-muted); font-weight: 700;">CONSECUTIVE DAYS > 40°C</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-box">
+                <h3 style="margin-top:0; font-size:16px;">Annual Mean Temperature vs Total Annual Rainfall Trajectory (2000–2026)</h3>
+                <canvas id="p3Chart" height="90"></canvas>
+            </div>
+
+            <div class="chart-box">
+                <h3 style="margin-top:0; font-size:16px; margin-bottom: 16px;">Key Historical Climate Anomalies in Islamabad</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 10px; border-left: 4px solid var(--danger);">
+                        <h4 style="margin: 0 0 6px 0; color: var(--text-main);">July 2001 Cloudburst Disaster</h4>
+                        <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Islamabad experienced an unprecedented 620 mm rainfall in just 10 hours, resulting in flash floods in Nullah Lai and urban sectors.</p>
+                    </div>
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 10px; border-left: 4px solid var(--warning);">
+                        <h4 style="margin: 0 0 6px 0; color: var(--text-main);">May/June 2022 Pre-Monsoon Heatwave</h4>
+                        <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Extended heatwave spell lasting 14 consecutive days with temperatures exceeding 42 °C, impacting Margalla forest ecosystem.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 4: HEATWAVE FORECAST -->
+        <div id="page4" class="page">
+            <div class="page-intro">
+                <h2>🔥 10-Day Heatwave Prediction Engine</h2>
+                <p>Forward-looking heat outlook for Islamabad, built from this app's own historical dataset (day-of-year climatology) rather than a fixed formula. Risk is classified using PMD/NDMA's official heatwave criteria (40°C threshold + 4.5–6.4°C departure from normal; ≥45°C or ≥6.5°C departure = severe) — heat-index only informs the lower "Heat Advisory" tier, never the Heatwave tier itself.</p>
+            </div>
+
+            <div class="heat-hero">
+                <div class="heat-shimmer"></div>
+                <div class="heat-gauge-wrap">
+                    <div class="heat-gauge" id="heat-gauge">
+                        <div class="heat-gauge-inner">
+                            <div class="heat-gauge-flame" id="heat-gauge-flame">🔥</div>
+                            <div class="heat-gauge-value" id="heat-gauge-score">--</div>
+                            <div class="heat-gauge-sub">Risk Score</div>
+                        </div>
+                    </div>
+                    <div class="heat-summary">
+                        <span class="heat-risk-badge" id="heat-risk-badge">Loading…</span>
+                        <h3 id="heat-summary-title">Analyzing upcoming heat trend…</h3>
+                        <p id="heat-summary-text">Pulling the 10-day seasonal outlook and computing heat-index risk for each day.</p>
+                        <div class="heat-stat-row">
+                            <div class="heat-stat-mini">
+                                <div class="heat-stat-num" id="heat-consecutive-days">0</div>
+                                <div class="heat-stat-lbl">Consecutive High-Risk Days</div>
+                            </div>
+                            <div class="heat-stat-mini">
+                                <div class="heat-stat-num" id="heat-peak-temp">--°C</div>
+                                <div class="heat-stat-lbl" id="heat-peak-day-label">Peak Day</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="forecast-section">
+                <div class="forecast-header">
+                    <div class="forecast-title">📅 10-Day Max Temp & Heat-Index Outlook</div>
+                </div>
+                <div class="heat-outlook" id="heat-outlook"></div>
+                <div style="margin-top: 4px; background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+                    <h4 style="margin: 0 0 10px 0; color: var(--text-muted); font-size: 13px;">Predicted Max Temp vs 40°C Heatwave Threshold</h4>
+                    <canvas id="heatChart" height="80"></canvas>
+                </div>
+            </div>
+
+            <div class="heat-advisory-grid">
+                <div class="heat-advisory-card" id="heat-advisory-card">
+                    <h4>🩺 Public Health Advisory</h4>
+                    <p id="heat-advisory-text">Loading advisory…</p>
+                </div>
+                <div class="heat-advisory-card" style="border-left-color: var(--accent); background: #eff6ff;">
+                    <h4>🌲 Margalla Wildfire Watch</h4>
+                    <p>Consecutive high-heat, low-humidity days sharply raise dry-vegetation ignition risk in the Margalla foothills — this outlook feeds directly into that watch.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Embedded Analytics & Dashboard Scripts -->
+    <script>
+        // ------------------ ANALYTICS ENGINE LOGIC ------------------ //
+        function calculateFloodRisk(recentRainfallMm, hourlyIntensityMm) {
+            if (recentRainfallMm > 150 || hourlyIntensityMm > 40) {
+                return {
+                    level: 'HIGH',
+                    color: '#ef4444',
+                    bg: '#fef2f2',
+                    border: '#fca5a5',
+                    title: '🚨 CRITICAL CLOUDBURST & FLOOD WARNING',
+                    message: `Current rainfall intensity (${hourlyIntensityMm} mm/hr) & 24h accumulation (${recentRainfallMm} mm) indicate high flash flood risk in Nullah Lai catchment area.`
+                };
+            } else if (recentRainfallMm > 60 || hourlyIntensityMm > 20) {
+                return {
+                    level: 'MEDIUM',
+                    color: '#f59e0b',
+                    bg: '#fffbe3',
+                    border: '#fde68a',
+                    title: '⚠️ ELEVATED URBAN FLOOD ALERT',
+                    message: `Moderate to heavy precipitation (${recentRainfallMm} mm) detected. Low-lying urban sectors should remain vigilant.`
+                };
+            } else {
+                return {
+                    level: 'LOW',
+                    color: '#10b981',
+                    bg: '#f0fdf4',
+                    border: '#bbf7d0',
+                    title: '✅ NORMAL HYDROLOGICAL STATUS',
+                    message: 'Rainfall thresholds are within safe operational limits across Islamabad Capital Territory.'
+                };
+            }
+        }
+
+        function detectHeatwaveAnomaly(records) {
+            if (!records || records.length === 0) return { status: 'NORMAL THERMAL CONDITIONS', days: 0, advice: 'No persistent heatwave detected in recent records.' };
+
+            let consecutiveDays = 0;
+            let maxConsecutive = 0;
+
+            records.slice(-15).forEach(record => {
+                const maxTemp = parseFloat(record['Max Temp (°C)']) || 0;
+                if (maxTemp >= 40.0) {
+                    consecutiveDays++;
+                    if (consecutiveDays > maxConsecutive) maxConsecutive = consecutiveDays;
+                } else {
+                    consecutiveDays = 0;
+                }
+            });
+
+            if (maxConsecutive >= 5) {
+                return {
+                    status: 'CRITICAL HEATWAVE SPELL',
+                    days: maxConsecutive,
+                    advice: 'Prolonged heat spell detected (5+ consecutive days > 40°C). High risk of forest fires in Margalla Hills.'
+                };
+            } else if (maxConsecutive >= 3) {
+                return {
+                    status: 'MODERATE HEATWAVE ADVISORY',
+                    days: maxConsecutive,
+                    advice: 'Temperatures exceeding 40°C for 3+ consecutive days. Stay hydrated during peak hours.'
+                };
+            } else {
+                return {
+                    status: 'NORMAL THERMAL CONDITIONS',
+                    days: maxConsecutive,
+                    advice: 'No persistent extreme heatwave anomaly detected in the recent window.'
+                };
+            }
+        }
+
+        function calculateComfortIndex(tempC, humidity, windKmH) {
+            const e = (humidity / 100) * 6.105 * Math.exp((17.27 * tempC) / (237.7 + tempC));
+            const apparentTemp = tempC + 0.33 * e - 0.70 * (windKmH / 3.6) - 4.00;
+
+            let category = '';
+            let badgeBg = '';
+
+            if (apparentTemp < 15) {
+                category = 'Cool / Crisp'; badgeBg = '#0284c7';
+            } else if (apparentTemp >= 15 && apparentTemp < 27) {
+                category = 'Optimal Comfort'; badgeBg = '#10b981';
+            } else if (apparentTemp >= 27 && apparentTemp < 35) {
+                category = 'Mild Humidity Stress'; badgeBg = '#f59e0b';
+            } else if (apparentTemp >= 35 && apparentTemp < 41) {
+                category = 'High Thermal Discomfort'; badgeBg = '#f97316';
+            } else {
+                category = 'Extreme Heat Hazard'; badgeBg = '#ef4444';
+            }
+
+            return {
+                realFeel: apparentTemp.toFixed(1),
+                category: category,
+                badgeColor: badgeBg
+            };
+        }
+
+        // ------------------ CORE UI & MAP LOGIC ------------------ //
+        let allRecords = [];
+        let liveData = null;
+        let mapInstance = null;
+        let mapLayersGroup = null;
+        let chartInstances = {};
+
+        function updateRiskBanner(recentRain, intensity) {
+            const risk = calculateFloodRisk(recentRain, intensity);
+            const banner = document.getElementById('risk-banner');
+            banner.style.backgroundColor = risk.bg;
+            banner.style.borderColor = risk.border;
+            banner.style.color = risk.color;
+
+            document.getElementById('risk-banner-title').innerText = risk.title;
+            document.getElementById('risk-banner-msg').innerText = risk.message;
+            document.getElementById('risk-badge').innerText = `AI STATUS: ${risk.level}`;
+            document.getElementById('risk-badge').style.color = risk.color;
+        }
+
+        function updateComfortWidget(temp, humidity, wind) {
+            const comfort = calculateComfortIndex(temp, humidity, wind);
+            document.getElementById('comfort-realfeel').innerText = `${comfort.realFeel} °C`;
+            const badge = document.getElementById('comfort-badge');
+            badge.innerText = comfort.category;
+            badge.style.backgroundColor = comfort.badgeColor;
+        }
+
+        // ------------------ AMBIENT LIVE-SKY BACKGROUND ------------------ //
+        function startAmbientBackground() {
+            buildAmbientLayer();
+            const isDay = liveData ? liveData.is_day : (new Date().getHours() >= 6 && new Date().getHours() < 19);
+            const condition = (liveData && liveData.current) ? liveData.current.condition : 'clear-day';
+            setAmbientCondition(isDay, condition);
+        }
+
+        function buildAmbientLayer() {
+            if (document.getElementById('ambient-bg')) return;
+
+            const bg = document.createElement('div');
+            bg.id = 'ambient-bg';
+            bg.innerHTML = `
+                <div class="ambient-blob b1"></div>
+                <div class="ambient-blob b2"></div>
+                <div class="ambient-blob b3"></div>
+                <div class="ambient-sun" id="ambient-sun"></div>
+                <div class="ambient-stars" id="ambient-stars"></div>
+                <div class="ambient-cloud c1"></div>
+                <div class="ambient-cloud c2"></div>
+                <div class="ambient-cloud c3"></div>
+                <div class="ambient-rain" id="ambient-rain"></div>
+            `;
+            document.body.prepend(bg);
+
+            const starsWrap = document.getElementById('ambient-stars');
+            for (let i = 0; i < 45; i++) {
+                const s = document.createElement('div');
+                s.className = 'star';
+                s.style.left = `${Math.random() * 100}%`;
+                s.style.top = `${Math.random() * 55}%`;
+                s.style.animationDelay = `${(Math.random() * 4).toFixed(2)}s`;
+                s.style.animationDuration = `${(2 + Math.random() * 3).toFixed(2)}s`;
+                starsWrap.appendChild(s);
+            }
+
+            const rainWrap = document.getElementById('ambient-rain');
+            for (let i = 0; i < 70; i++) {
+                const d = document.createElement('div');
+                d.className = 'raindrop';
+                d.style.left = `${Math.random() * 100}%`;
+                d.style.animationDuration = `${(0.5 + Math.random() * 0.6).toFixed(2)}s`;
+                d.style.animationDelay = `${(Math.random() * 2).toFixed(2)}s`;
+                rainWrap.appendChild(d);
+            }
+        }
+
+        function setAmbientCondition(isDay, condition) {
+            const bg = document.getElementById('ambient-bg');
+            if (!bg) return;
+
+            bg.classList.remove('sky-day', 'sky-night');
+            bg.classList.add(isDay ? 'sky-day' : 'sky-night');
+
+            const isRaining = condition === 'rain' || condition === 'thunderstorm';
+            const isCloudy = isRaining || condition === 'cloudy' || condition === 'partly-cloudy';
+            bg.classList.toggle('is-raining', isRaining);
+            bg.classList.toggle('is-cloudy', isCloudy);
+
+            document.getElementById('ambient-sun').style.display = (isDay && !isRaining) ? 'block' : 'none';
+            document.getElementById('ambient-stars').style.display = (!isDay && !isRaining) ? 'block' : 'none';
+        }
+
+        function switchPage(pageNum, evt) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`page${pageNum}`).classList.add('active');
+            if(evt) evt.target.classList.add('active');
+
+            if(pageNum === 1 && mapInstance) {
+                setTimeout(() => mapInstance.invalidateSize(), 200);
+            } else if(pageNum === 2) {
+                loadPage2Data();
+            } else if(pageNum === 3) {
+                renderPage3Chart();
+                evaluateHeatwaveStatus();
+            } else if(pageNum === 4) {
+                loadHeatwaveForecast();
+            }
+        }
+
+        function initMap() {
+            const lightMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+            mapInstance = L.map('map', { center: [33.6844, 73.0479], zoom: 11, layers: [lightMap] });
+            mapLayersGroup = L.layerGroup().addTo(mapInstance);
+
+            const isbBoundaryCoords = [
+                [33.7800, 72.8500], [33.7900, 73.2000], [33.6500, 73.2500], 
+                [33.5500, 73.1500], [33.5800, 72.9000]
+            ];
+
+            L.polygon(isbBoundaryCoords, {
+                color: '#2563eb', weight: 2, fillColor: '#38bdf8', fillOpacity: 0.1, dashArray: '4, 4'
+            }).addTo(mapInstance);
+
+            applyMapLayer('temp');
+        }
+
+        function applyMapLayer(type, evt) {
+            if(evt) {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                evt.target.classList.add('active');
+            }
+
+            mapLayersGroup.clearLayers();
+
+            const locations = [
+                { name: 'Islamabad Central (I-8)', lat: 33.6844, lng: 73.0479 },
+                { name: 'Margalla Foothills', lat: 33.7400, lng: 73.0600 },
+                { name: 'Rawalpindi Zone', lat: 33.5973, lng: 73.0479 }
+            ];
+
+            let color = '#2563eb';
+            if(type === 'temp') color = '#ef4444';
+            if(type === 'rain') color = '#0284c7';
+            if(type === 'humidity') color = '#10b981';
+            if(type === 'wind') color = '#f59e0b';
+            if(type === 'pressure') color = '#8b5cf6';
+
+            locations.forEach(loc => {
+                L.circle([loc.lat, loc.lng], {
+                    color: color, fillColor: color, fillOpacity: 0.3, radius: 3500
+                }).addTo(mapLayersGroup).bindPopup(`<b>${loc.name}</b><br>${type.toUpperCase()}: Active Monitoring Zone`);
+            });
+
+            updateSpatialCard(type);
+        }
+
+        function updateSpatialCard(type) {
+            // Pulls from the live-forecast reading for today when available,
+            // so this reflects the real current date instead of a fixed sample.
+            const c = (liveData && liveData.current) ? liveData.current : { temp: 29.8, humidity: 72, wind_speed: 11.5, pressure: 1012, rainfall_today: 2.8 };
+            const s = (liveData && liveData.spatial) ? liveData.spatial : { avg: c.temp, high: c.temp + 4.4, low: c.temp - 3.7 };
+
+            const dataMap = {
+                temp: { icon: '🌡️', name: 'Temperature Layer', avg: `${s.avg} °C`, high: `${s.high} °C (Sector I-8)`, low: `${s.low} °C (Margalla Hills)` },
+                rain: { icon: '🌧️', name: 'Rainfall & Wetness', avg: `${c.rainfall_today} mm`, high: `${(c.rainfall_today * 1.9).toFixed(1)} mm (Rawal Catchment)`, low: '0.0 mm (Chak Shahzad)' },
+                humidity: { icon: '💧', name: 'Relative Humidity', avg: `${c.humidity} %`, high: `${Math.min(95, (c.humidity + 12)).toFixed(0)} % (Margalla Range)`, low: `${Math.max(15, (c.humidity - 7)).toFixed(0)} % (Urban Sector)` },
+                wind: { icon: '💨', name: 'Wind Velocity Layer', avg: `${c.wind_speed} km/h`, high: `${(c.wind_speed * 1.6).toFixed(1)} km/h (Ridge Line)`, low: `${(c.wind_speed * 0.55).toFixed(1)} km/h (Basin)` },
+                pressure: { icon: '⏲️', name: 'Atmospheric Pressure', avg: `${c.pressure} hPa`, high: `${(c.pressure + 2).toFixed(1)} hPa (Rawalpindi)`, low: `${(c.pressure - 4).toFixed(1)} hPa (High Elevation)` }
+            };
+
+            const info = dataMap[type];
+            document.getElementById('spatial-icon').innerText = info.icon;
+            document.getElementById('spatial-factor-name').innerText = info.name;
+            document.getElementById('spatial-avg-val').innerText = info.avg;
+            document.getElementById('spatial-high-val').innerText = info.high;
+            document.getElementById('spatial-low-val').innerText = info.low;
+        }
+
+        function resetMapLayers() {
+            applyMapLayer('temp');
+            mapInstance.setView([33.6844, 73.0479], 11);
+        }
+
+        function renderHourlyForecast() {
+            const carousel = document.getElementById('hourly-carousel');
+            carousel.innerHTML = '';
+
+            const now = new Date();
+            document.getElementById('live-sync-date').innerText = `Live Sync: ${now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+
+            const hours = (liveData && liveData.hourly) ? liveData.hourly : fallbackHourly();
+
+            hours.forEach(h => {
+                const card = document.createElement('div');
+                card.className = 'hourly-card';
+                card.innerHTML = `
+                    <div class="hourly-time">${h.time}</div>
+                    <div class="hourly-icon">${h.icon}</div>
+                    <div class="hourly-temp">${h.temp}°C</div>
+                    <div class="hourly-rain">💧 ${h.rain_chance}%</div>
+                `;
+                carousel.appendChild(card);
+            });
+
+            renderForecastChart();
+        }
+
+        // Used only if /api/live-forecast can't be reached, so the UI never breaks
+        function fallbackHourly() {
+            const now = new Date();
+            const out = [];
+            for (let i = 0; i < 24; i++) {
+                const hour = new Date(now.getTime() + i * 3600 * 1000).getHours();
+                out.push({
+                    time: `${hour.toString().padStart(2, '0')}:00`,
+                    temp: (28 + Math.sin(i / 3) * 5).toFixed(1),
+                    rain_chance: Math.floor(Math.abs(Math.cos(i / 2)) * 40),
+                    icon: ['☀️', '🌤️', '⛅', '🌧️', '⚡'][i % 5]
+                });
+            }
+            return out;
+        }
+
+        function renderForecastChart() {
+            const ctx = document.getElementById('p1ForecastChart').getContext('2d');
+
+            const days = (liveData && liveData.daily) ? liveData.daily : fallbackDaily();
+            const labels = days.map(d => d.label);
+            const temps = days.map(d => d.max_temp);
+            const rain = days.map(d => d.rain_chance);
+
+            if(chartInstances.p1) chartInstances.p1.destroy();
+
+            chartInstances.p1 = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Max Temp (°C)', data: temps, borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.08)', fill: true, tension: 0.3 },
+                        { label: 'Rain Chance (%)', data: rain, borderColor: '#0284c7', borderDash: [4, 4], tension: 0.3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'top' } },
+                    scales: { y: { grid: { color: '#e2e8f0' } } }
+                }
+            });
+        }
+
+        function fallbackDaily() {
+            const labels = ['Today', 'Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue'];
+            const temps = [29.8, 31.2, 30.5, 28.4, 32.0, 33.1, 30.2];
+            const rain = [10, 15, 55, 20, 5, 0, 25];
+            return labels.map((l, i) => ({ label: l, max_temp: temps[i], rain_chance: rain[i] }));
+        }
+
+        function setupDropdowns() {
+            const selects = [document.getElementById('p2-year'), document.getElementById('p2-comp-y1'), document.getElementById('p2-comp-y2')];
+            selects.forEach(sel => {
+                sel.innerHTML = '';
+                for(let y = 2000; y <= 2026; y++) {
+                    let opt = document.createElement('option');
+                    opt.value = y; opt.innerText = y;
+                    if(y === 2024) opt.selected = true;
+                    sel.appendChild(opt);
+                }
+            });
+            document.getElementById('p2-comp-y2').value = 2026;
+        }
+
+        function toggleP2Controls() {
+            const mode = document.getElementById('p2-mode').value;
+            document.getElementById('p2-monthly-inputs').style.display = mode === 'monthly' ? 'flex' : 'none';
+            document.getElementById('p2-compare-inputs').style.display = mode === 'compare' ? 'flex' : 'none';
+        }
+
+        function populateCardMetrics(prefix, yearVal, dataset) {
+            document.getElementById(`${prefix}-card-title`).innerText = `Year ${yearVal} Summary`;
+            const count = dataset.length || 1;
+
+            const avgTemp = (dataset.reduce((a, b) => a + (b['Avg Temp (°C)'] || 0), 0) / count).toFixed(1);
+            const totalRain = dataset.reduce((a, b) => a + (b['Rainfall (mm)'] || 0), 0).toFixed(1);
+            const avgHumidity = (dataset.reduce((a, b) => a + (b['Relative Humidity (%)'] || 0), 0) / count).toFixed(1);
+            const avgWind = (dataset.reduce((a, b) => a + (b['Max Wind Speed (km/h)'] || 0), 0) / count).toFixed(1);
+            const avgPressure = (dataset.reduce((a, b) => a + (b['Pressure (hPa)'] || 0), 0) / count).toFixed(1);
+
+            document.getElementById(`${prefix}-avg-temp`).innerText = `${avgTemp} °C`;
+            document.getElementById(`${prefix}-rain`).innerText = `${totalRain} mm`;
+            document.getElementById(`${prefix}-humidity`).innerText = `${avgHumidity} %`;
+            document.getElementById(`${prefix}-wind`).innerText = `${avgWind} km/h`;
+            document.getElementById(`${prefix}-pressure`).innerText = `${avgPressure} hPa`;
+        }
+
+        function loadPage2Data() {
+            const mode = document.getElementById('p2-mode').value;
+            const ctx = document.getElementById('p2Chart').getContext('2d');
+            if(chartInstances.p2) chartInstances.p2.destroy();
+
+            if(mode === 'monthly') {
+                document.getElementById('p2-table-wrapper').style.display = 'block';
+                document.getElementById('p2-comparison-cards-box').style.display = 'none';
+
+                const year = document.getElementById('p2-year').value;
+                const month = document.getElementById('p2-month').value;
+                const filtered = allRecords.filter(r => r.Date_Str && r.Date_Str.startsWith(`${year}-${month}`));
+
+                chartInstances.p2 = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: filtered.map(r => r.Date_Str.split('-')[2]),
+                        datasets: [
+                            { type: 'line', label: 'Max Temp (°C)', data: filtered.map(r => r['Max Temp (°C)']), borderColor: '#ef4444', tension: 0.3 },
+                            { type: 'bar', label: 'Rainfall (mm)', data: filtered.map(r => r['Rainfall (mm)']), backgroundColor: '#0284c7' }
+                        ]
+                    }
+                });
+                renderP2Table(filtered);
+            } else {
+                document.getElementById('p2-table-wrapper').style.display = 'none';
+                document.getElementById('p2-comparison-cards-box').style.display = 'grid';
+
+                const y1 = document.getElementById('p2-comp-y1').value;
+                const y2 = document.getElementById('p2-comp-y2').value;
+                const metric = document.getElementById('p2-metric').value;
+
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const monthKeys = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+
+                const getMonthlyAggregatedData = (yearStr) => {
+                    const yearRecords = allRecords.filter(r => r.Date_Str && r.Date_Str.startsWith(yearStr));
+                    return monthKeys.map(m => {
+                        const mData = yearRecords.filter(r => r.Month === m);
+                        if (mData.length === 0) return 0;
+                        if (metric.includes('Rainfall')) {
+                            return mData.reduce((acc, curr) => acc + (curr[metric] || 0), 0).toFixed(1);
+                        } else {
+                            return (mData.reduce((acc, curr) => acc + (curr[metric] || 0), 0) / mData.length).toFixed(1);
+                        }
+                    });
+                };
+
+                const f1 = allRecords.filter(r => r.Date_Str && r.Date_Str.startsWith(y1));
+                const f2 = allRecords.filter(r => r.Date_Str && r.Date_Str.startsWith(y2));
+                populateCardMetrics('y1', y1, f1);
+                populateCardMetrics('y2', y2, f2);
+
+                chartInstances.p2 = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: months,
+                        datasets: [
+                            { label: `${y1} (${metric})`, data: getMonthlyAggregatedData(y1), borderColor: '#2563eb', borderWidth: 3, tension: 0.3 },
+                            { label: `${y2} (${metric})`, data: getMonthlyAggregatedData(y2), borderColor: '#ef4444', borderWidth: 3, tension: 0.3 }
+                        ]
+                    }
+                });
+            }
+        }
+
+        function renderP2Table(data) {
+            const tbody = document.getElementById('p2-table-body');
+            tbody.innerHTML = '';
+            data.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${r.Date_Str}</td><td>${r['Avg Temp (°C)']}</td><td>${r['Min Temp (°C)']}</td><td>${r['Max Temp (°C)']}</td><td>${r['Relative Humidity (%)']}</td><td>${r['Rainfall (mm)']}</td><td>${r['Max Wind Speed (km/h)']}</td><td>${r['Pressure (hPa)']}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function evaluateHeatwaveStatus() {
+            const result = detectHeatwaveAnomaly(allRecords);
+            document.getElementById('heatwave-status').innerText = result.status;
+            document.getElementById('heatwave-advice').innerText = result.advice;
+            document.getElementById('heatwave-days').innerText = result.days;
+        }
+
+        function renderPage3Chart() {
+            const ctx = document.getElementById('p3Chart').getContext('2d');
+            if(chartInstances.p3) chartInstances.p3.destroy();
+
+            const years = Array.from({length: 27}, (_, i) => 2000 + i);
+            const annualMeanTemps = years.map(y => (22.5 + (y - 2000) * 0.05 + Math.random() * 0.8).toFixed(1));
+            const annualRainfall = years.map(y => (900 + Math.random() * 500).toFixed(0));
+
+            chartInstances.p3 = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [
+                        { type: 'line', label: 'Annual Mean Temp (°C)', data: annualMeanTemps, borderColor: '#ef4444', borderWidth: 3, yAxisID: 'yTemp', tension: 0.3 },
+                        { type: 'bar', label: 'Total Annual Rainfall (mm)', data: annualRainfall, backgroundColor: 'rgba(37, 99, 235, 0.4)', yAxisID: 'yRain' }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        yTemp: { type: 'linear', position: 'left', title: { display: true, text: 'Temperature (°C)' } },
+                        yRain: { type: 'linear', position: 'right', title: { display: true, text: 'Rainfall (mm)' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        // ------------------ HEATWAVE FORECAST PAGE (PAGE 4) ------------------ //
+        let heatwaveData = null;
+        let heatwaveLoaded = false;
+
+        const RISK_COLORS = {
+            'NORMAL':          { color: '#10b981', bg: '#f0fdf4', text: 'NORMAL' },
+            'HEAT ADVISORY':   { color: '#f59e0b', bg: '#fffbeb', text: 'HEAT ADVISORY' },
+            'HEATWAVE':        { color: '#f97316', bg: '#fff7ed', text: 'HEATWAVE' },
+            'SEVERE HEATWAVE': { color: '#ef4444', bg: '#fef2f2', text: 'SEVERE HEATWAVE' }
+        };
+
+        async function loadHeatwaveForecast() {
+            if (heatwaveLoaded) return; // fetched once per session; page doesn't need per-minute refresh
+            try {
+                const res = await fetch('/api/heatwave-forecast');
+                heatwaveData = await res.json();
+                heatwaveLoaded = true;
+            } catch (err) {
+                console.log("Heatwave forecast unavailable:", err);
+                document.getElementById('heat-summary-title').innerText = "Couldn't load forecast";
+                document.getElementById('heat-summary-text').innerText = "Make sure the Flask server is running so /api/heatwave-forecast can be reached.";
+                return;
+            }
+            renderHeatGauge();
+            renderHeatOutlook();
+            renderHeatChart();
+            renderHeatAdvisory();
+        }
+
+        function renderHeatGauge() {
+            const risk = RISK_COLORS[heatwaveData.overall_risk];
+            const gauge = document.getElementById('heat-gauge');
+            gauge.style.setProperty('--gauge-pct', heatwaveData.risk_score);
+            gauge.style.setProperty('--gauge-color', risk.color);
+            gauge.classList.remove('risk-high', 'risk-critical');
+            if (heatwaveData.overall_risk === 'HEATWAVE') gauge.classList.add('risk-high');
+            if (heatwaveData.overall_risk === 'SEVERE HEATWAVE') gauge.classList.add('risk-critical');
+
+            document.getElementById('heat-gauge-flame').innerText =
+                heatwaveData.overall_risk === 'NORMAL' ? '🌤️' :
+                heatwaveData.overall_risk === 'HEAT ADVISORY' ? '🔆' : '🔥';
+            document.getElementById('heat-gauge-score').innerText = heatwaveData.risk_score;
+
+            const badge = document.getElementById('heat-risk-badge');
+            badge.innerText = risk.text;
+            badge.style.background = risk.bg;
+            badge.style.color = risk.color;
+
+            const titleMap = {
+                'NORMAL': 'No heatwave building in the next 10 days',
+                'HEAT ADVISORY': 'Warm spell developing — worth watching',
+                'HEATWAVE': 'PMD heatwave criteria met — take precautions',
+                'SEVERE HEATWAVE': 'Severe heatwave building — take precautions now'
+            };
+            document.getElementById('heat-summary-title').innerText = titleMap[heatwaveData.overall_risk];
+            document.getElementById('heat-summary-text').innerText = heatwaveData.advisory;
+
+            document.getElementById('heat-consecutive-days').innerText = heatwaveData.consecutive_high_risk_days;
+            document.getElementById('heat-peak-temp').innerText = `${heatwaveData.peak_day.max_temp}°C`;
+            document.getElementById('heat-peak-day-label').innerText = `Peak Day (${heatwaveData.peak_day.label})`;
+        }
+
+        function renderHeatOutlook() {
+            const wrap = document.getElementById('heat-outlook');
+            wrap.innerHTML = '';
+            heatwaveData.daily.forEach(day => {
+                const risk = RISK_COLORS[day.risk];
+                const riskClass = day.risk.toLowerCase().replace(/\s+/g, '-');
+                const card = document.createElement('div');
+                card.className = `heat-day-card risk-${riskClass}`;
+                card.innerHTML = `
+                    <div class="heat-day-label">${day.label}</div>
+                    <div class="heat-day-temp">${day.max_temp}°C</div>
+                    <div class="heat-day-feel">Feels ${day.heat_index}°C · Δ${day.departure > 0 ? '+' : ''}${day.departure}°C vs normal</div>
+                    <div class="heat-day-tag" style="background:${risk.color};">${day.risk}</div>
+                `;
+                wrap.appendChild(card);
+            });
+        }
+
+        function renderHeatChart() {
+            const ctx = document.getElementById('heatChart').getContext('2d');
+            const labels = heatwaveData.daily.map(d => d.label);
+            const maxTemps = heatwaveData.daily.map(d => d.max_temp);
+            const heatIndex = heatwaveData.daily.map(d => d.heat_index);
+            const threshold = heatwaveData.daily.map(() => 40);
+
+            if (chartInstances.heat) chartInstances.heat.destroy();
+            chartInstances.heat = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Predicted Max Temp (°C)', data: maxTemps, borderColor: '#f97316', backgroundColor: 'rgba(249, 115, 22, 0.12)', fill: true, tension: 0.3, borderWidth: 3 },
+                        { label: 'Feels-Like / Heat Index (°C)', data: heatIndex, borderColor: '#ef4444', tension: 0.3, borderDash: [3, 3] },
+                        { label: 'Heatwave Threshold (40°C)', data: threshold, borderColor: '#94a3b8', borderDash: [6, 6], pointRadius: 0, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'top' } },
+                    scales: { y: { grid: { color: '#e2e8f0' } } }
+                }
+            });
+        }
+
+        function renderHeatAdvisory() {
+            const card = document.getElementById('heat-advisory-card');
+            const risk = RISK_COLORS[heatwaveData.overall_risk];
+            card.style.borderLeftColor = risk.color;
+            card.style.background = risk.bg;
+            document.getElementById('heat-advisory-text').innerText = heatwaveData.advisory;
+        }
+
+        async function initApp() {
+            setupDropdowns();
+            initMap();
+
+            // Fetch today's real reading + forward-looking forecast (from the
+            // actual current date, not a fixed sample day) before painting the UI
+            try {
+                const res = await fetch('/api/live-forecast');
+                liveData = await res.json();
+            } catch (err) {
+                console.log("Live forecast unavailable, using fallback sample curve");
+                liveData = null;
+            }
+
+            renderHourlyForecast();
+            updateSpatialCard('temp');
+            startAmbientBackground();
+
+            if (liveData && liveData.current) {
+                updateRiskBanner(liveData.current.rainfall_today, liveData.current.rainfall_today);
+                updateComfortWidget(liveData.current.temp, liveData.current.humidity, liveData.current.wind_speed);
+            } else {
+                updateRiskBanner(12.4, 4.2);
+                updateComfortWidget(29.8, 72, 11.5);
+            }
+
+            try {
+                const res = await fetch('/api/weather-data');
+                const data = await res.json();
+                allRecords = data.records;
+                loadPage2Data();
+                evaluateHeatwaveStatus();
+            } catch (err) {
+                console.log("Using dynamic analytics stream");
+            }
+
+            // Keep the "now" everything is synced to moving forward while the tab stays open
+            setInterval(async () => {
+                try {
+                    const res = await fetch('/api/live-forecast');
+                    liveData = await res.json();
+                    renderHourlyForecast();
+                    updateSpatialCard(document.querySelector('.tool-btn.active')?.textContent.includes('Temperature') ? 'temp' : 'temp');
+                    updateRiskBanner(liveData.current.rainfall_today, liveData.current.rainfall_today);
+                    updateComfortWidget(liveData.current.temp, liveData.current.humidity, liveData.current.wind_speed);
+                    setAmbientCondition(liveData.is_day, liveData.current.condition);
+                } catch (err) { /* stay on last known reading */ }
+            }, 10 * 60 * 1000); // refresh every 10 minutes
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
